@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matteterninger - Bygg Tall!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Matteterninger</h1>
+        <div id="controls">
+            <div class="control-group">
+                <label for="game-mode">Modus:</label>
+                <select id="game-mode">
+                    <option value="sequential">Grunnmodus (Sekvensiell 1, 2, 3...)</option>
+                    <option value="freestyle">Alternativ modus (Fritt frem, poeng for ubrutt rekke)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <button id="btn-roll-dice">Kast 5 Terninger</button>
+                <button id="btn-manual-dice">Velg Siffer Manuelt</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="play-area">
+            <div id="dice-container" class="panel">
+                <h2>Dine Terninger</h2>
+                <div id="available-dice" class="dropzone" data-type="dice-source">
+                    <div class="dice-placeholder">Kast terninger for å starte!</div>
+                </div>
+            </div>
+
+            <div id="operators-container" class="panel">
+                <h2>Verktøykasse</h2>
+                <div id="available-operators">
+                    <div class="operator draggable" draggable="true" data-val="+">+</div>
+                    <div class="operator draggable" draggable="true" data-val="-">-</div>
+                    <div class="operator draggable" draggable="true" data-val="*">*</div>
+                    <div class="operator draggable" draggable="true" data-val="/">/</div>
+                    <div class="operator draggable" draggable="true" data-val="(">(</div>
+                    <div class="operator draggable" draggable="true" data-val=")">)</div>
+                    <div class="operator draggable" draggable="true" data-val="^">^ (Potens)</div>
+                    <div class="operator draggable" draggable="true" data-val="!">! (Fakultet)</div>
+                </div>
+            </div>
+
+            <div id="build-area" class="panel">
+                <h2>Byggeflate (Dra hit)</h2>
+                <div id="expression-builder" class="dropzone" data-type="builder">
+                    </div>
+                <div class="actions">
+                    <button id="btn-evaluate-build">Sjekk Byggverk</button>
+                    <button id="btn-clear-build">Tøm Byggeflate</button>
+                </div>
+            </div>
+
+            <div id="manual-input-area" class="panel">
+                <h2>Direkte Føring (Differensiering)</h2>
+                <div class="input-group">
+                    <input type="text" id="manual-expression-input" placeholder="Skriv uttrykk her, f.eks: 4^3+5">
+                    <button id="btn-evaluate-manual">Sjekk Uttrykk</button>
+                </div>
+            </div>
+        </section>
+
+        <aside id="log-area" class="panel">
+            <h2>Resultater & Loggføring</h2>
+            <div id="score-info">
+                <p>Neste mål (Grunnmodus): <span id="current-target">1</span></p>
+                <p>Poengsum (høyeste ubrutte rekke): <span id="current-score">0</span></p>
+            </div>
+            <div class="table-container">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>Tall</th>
+                            <th>Ditt Uttrykk</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody">
+                        </tbody>
+                </table>
+            </div>
+        </aside>
+    </main>
+
+    <footer id="debug-footer">
+        <h3>Systemlogg (For utvikler/feilsøking)</h3>
+        <div id="debug-log"></div>
+    </footer>
+
+    <script src="script.js" defer></script>
+</body>
+</html>
