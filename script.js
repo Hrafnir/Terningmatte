@@ -1,4 +1,4 @@
-/* Version: #3 */
+/* Version: #8 */
 
 // === SEKSJON: SYSTEMLOGG ===
 function logDebug(msg, type = 'info') {
@@ -20,14 +20,14 @@ function logDebug(msg, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${msg}`);
 }
 
-logDebug('Starter initialisering av script.js', 'info');
+logDebug('Starter initialisering av oppdatert script.js', 'info');
 
 // === SEKSJON: GLOBALE VARIABLER (STATE) ===
-let currentMode = 'sequential'; // 'sequential' eller 'freestyle'
-let currentDice = []; // Inneholder de 5 aktuelle sifrene
-let targetSequential = 1; // Målet vi skal nå i grunnmodus
-let solvedFreestyle = new Set(); // Holder styr på løste tall i alternativ modus
-let currentScore = 0; // Høyeste ubrutte rekke
+let currentMode = 'sequential'; 
+let currentDice = []; 
+let targetSequential = 1; 
+let solvedFreestyle = new Set(); 
+let currentScore = 0; 
 
 // DOM Elementer
 const elModeSelect = document.getElementById('game-mode');
@@ -42,6 +42,10 @@ const elBtnEvalManual = document.getElementById('btn-evaluate-manual');
 const elCurrentTarget = document.getElementById('current-target');
 const elCurrentScore = document.getElementById('current-score');
 const elResultsTbody = document.getElementById('results-tbody');
+
+// Visuell placeholder for Drag & Drop mellom elementer
+const dragPlaceholder = document.createElement('div');
+dragPlaceholder.className = 'drag-placeholder';
 
 // === SEKSJON: INITIALISERING OG HENDELSER ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -103,6 +107,29 @@ function inputManualDice() {
     }
 }
 
+// Funksjon for å bygge HTML for ekte terning-prikker
+function createDiceDots(val) {
+    const dotsMap = {
+        1: ['pos-mc'],
+        2: ['pos-tl', 'pos-br'],
+        3: ['pos-tl', 'pos-mc', 'pos-br'],
+        4: ['pos-tl', 'pos-tr', 'pos-bl', 'pos-br'],
+        5: ['pos-tl', 'pos-tr', 'pos-mc', 'pos-bl', 'pos-br'],
+        6: ['pos-tl', 'pos-ml', 'pos-bl', 'pos-tr', 'pos-mr', 'pos-br']
+    };
+
+    let html = '';
+    if (dotsMap[val]) {
+        dotsMap[val].forEach(posClass => {
+            html += `<div class="dot ${posClass}"></div>`;
+        });
+    } else {
+        // Fallback for manuelle siffer over 6 eller 0
+        html = `<span style="align-self:center; justify-self:center; grid-area: 2/2; font-size: 1.5rem; font-weight: bold;">${val}</span>`;
+    }
+    return html;
+}
+
 function renderDice() {
     elAvailableDice.innerHTML = '';
     currentDice.forEach((val, index) => {
@@ -110,8 +137,10 @@ function renderDice() {
         die.className = 'die draggable';
         die.draggable = true;
         die.dataset.val = val;
-        die.dataset.id = `die-${index}`; // Unik ID for å spore hvilken terning det er
-        die.textContent = val;
+        die.dataset.id = `die-${index}`; // Unik ID
+        
+        // Fyll terningen med prikker!
+        die.innerHTML = createDiceDots(val);
         
         die.addEventListener('dragstart', handleDragStart);
         die.addEventListener('dragend', handleDragEnd);
@@ -128,7 +157,7 @@ function renderDice() {
     });
 }
 
-// === SEKSJON: DRAG & DROP LOGIKK ===
+// === SEKSJON: AVANSERT DRAG & DROP LOGIKK ===
 let draggedElement = null;
 let isCloning = false;
 
@@ -137,7 +166,7 @@ function setupDraggableOperators() {
     operators.forEach(op => {
         op.addEventListener('dragstart', (e) => {
             draggedElement = op;
-            isCloning = true; // Operatorer skal klones fra verktøykassen
+            isCloning = true; 
             e.dataTransfer.effectAllowed = 'copy';
             op.classList.add('is-dragging');
             logDebug(`Starter dra-operasjon for operator: ${op.dataset.val}`, 'info');
@@ -148,30 +177,91 @@ function setupDraggableOperators() {
 
 function handleDragStart(e) {
     draggedElement = this;
-    isCloning = false; // Terninger klones IKKE, de flyttes
+    isCloning = false; 
     e.dataTransfer.effectAllowed = 'move';
     this.classList.add('is-dragging');
-    logDebug(`Starter dra-operasjon for terning: ${this.dataset.val}`, 'info');
+    logDebug(`Starter dra-operasjon for element: ${this.dataset.val}`, 'info');
 }
 
 function handleDragEnd(e) {
     if (draggedElement) draggedElement.classList.remove('is-dragging');
+    
+    // Fjern visuell placeholder hvis den fortsatt er der
+    if (dragPlaceholder.parentElement) {
+        dragPlaceholder.remove();
+    }
+
+    // SJEKK: Ble elementet sluppet utenfor en gyldig droppsone? (Sletting/kasting)
+    if (e.dataTransfer.dropEffect === 'none') {
+        if (!isCloning) {
+            if (this.classList.contains('operator')) {
+                logDebug(`Operator ${this.dataset.val} ble dratt ut av byggeflaten og slettet.`, 'info');
+                this.remove();
+            } else if (this.classList.contains('die')) {
+                logDebug(`Terning ${this.dataset.val} dratt ut av byggeflaten. Returnerer til start.`, 'info');
+                elAvailableDice.appendChild(this);
+            }
+        }
+    }
+
+    document.querySelectorAll('.dropzone').forEach(dz => dz.classList.remove('drag-over'));
     draggedElement = null;
     isCloning = false;
-    document.querySelectorAll('.dropzone').forEach(dz => dz.classList.remove('drag-over'));
+}
+
+// Finner det elementet i byggeflaten vi skal sette inn "før" (skyve til side)
+function getDragAfterElement(container, x) {
+    const draggableElements = [...container.querySelectorAll('.draggable:not(.is-dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = x - box.left - box.width / 2; // Avstand fra midten av elementet
+        
+        // Hvis vi er til venstre for midten av elementet, og tettere på enn forrige
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 function setupDropZones() {
     const dropZones = document.querySelectorAll('.dropzone');
+    
     dropZones.forEach(zone => {
         zone.addEventListener('dragover', (e) => {
-            e.preventDefault(); // Tillat slipp
+            e.preventDefault(); 
             e.dataTransfer.dropEffect = isCloning ? 'copy' : 'move';
             zone.classList.add('drag-over');
+
+            if (zone.id === 'expression-builder' && draggedElement) {
+                const afterElement = getDragAfterElement(zone, e.clientX);
+                
+                if (isCloning) {
+                    // Vis en strek (placeholder) der operatoren vil lande
+                    if (afterElement == null) {
+                        zone.appendChild(dragPlaceholder);
+                    } else {
+                        zone.insertBefore(dragPlaceholder, afterElement);
+                    }
+                } else {
+                    // Hvis vi flytter en terning/eksisterende operatør, la den skyve elementer live
+                    if (afterElement == null) {
+                        zone.appendChild(draggedElement);
+                    } else {
+                        zone.insertBefore(draggedElement, afterElement);
+                    }
+                }
+            }
         });
 
-        zone.addEventListener('dragleave', () => {
+        zone.addEventListener('dragleave', (e) => {
             zone.classList.remove('drag-over');
+            // Hvis vi forlater byggeflaten, fjern placeholderen
+            if (zone.id === 'expression-builder' && dragPlaceholder.parentElement) {
+                dragPlaceholder.remove();
+            }
         });
 
         zone.addEventListener('drop', (e) => {
@@ -183,21 +273,36 @@ function setupDropZones() {
             const targetType = zone.dataset.type;
             
             if (isCloning) {
-                // Slipper en operator i byggeflaten
                 if (targetType === 'builder') {
                     const clone = draggedElement.cloneNode(true);
                     clone.classList.remove('is-dragging');
+                    clone.classList.add('draggable'); // Sikre at klonen kan dras igjen
+                    clone.draggable = true;
+                    
+                    // Gi klonen drag-hendelser slik at den kan flyttes rundt inni byggeflaten
+                    clone.addEventListener('dragstart', handleDragStart);
+                    clone.addEventListener('dragend', handleDragEnd);
                     clone.addEventListener('dblclick', () => {
-                        clone.remove(); // Dobbeltklikk for å slette operator fra bygg
-                        logDebug(`Fjernet operator ${clone.dataset.val} fra bygg.`, 'info');
+                        clone.remove(); 
+                        logDebug(`Fjernet operator ${clone.dataset.val} via dobbeltklikk.`, 'info');
                     });
-                    zone.appendChild(clone);
+
+                    // Erstatt placeholderen med den faktiske klonen
+                    if (dragPlaceholder.parentElement === zone) {
+                        zone.insertBefore(clone, dragPlaceholder);
+                        dragPlaceholder.remove();
+                    } else {
+                        zone.appendChild(clone);
+                    }
                     logDebug(`Slapp operator ${clone.dataset.val} i byggeflaten.`, 'success');
                 }
             } else {
-                // Flytter en terning
-                zone.appendChild(draggedElement);
-                logDebug(`Flyttet terning ${draggedElement.dataset.val} til ${zone.id}.`, 'success');
+                // Flytting håndteres allerede av dragover (for byggeflaten), 
+                // men hvis vi slipper i skuffen, må vi legge den til
+                if (targetType === 'dice-source' && draggedElement.classList.contains('die')) {
+                    zone.appendChild(draggedElement);
+                    logDebug(`Returnerte terning ${draggedElement.dataset.val} til skuffen.`, 'success');
+                }
             }
         });
     });
@@ -205,15 +310,15 @@ function setupDropZones() {
 
 // === SEKSJON: BYGGEFLATE & EVALUERING ===
 function clearBuildArea() {
-    // Fjern alle elementer i byggeflaten
     const items = Array.from(elBuildArea.children);
     items.forEach(item => {
         if (item.classList.contains('die')) {
-            elAvailableDice.appendChild(item); // Flytt terninger tilbake
+            elAvailableDice.appendChild(item); 
         } else if (item.classList.contains('operator')) {
-            item.remove(); // Slett operatorer
+            item.remove(); 
         }
     });
+    if (dragPlaceholder.parentElement) dragPlaceholder.remove();
     logDebug('Tømte byggeflaten.', 'info');
 }
 
@@ -224,10 +329,11 @@ function evaluateBuildArea() {
         return;
     }
     
-    // Bygg opp uttrykket som en streng
-    let expressionStr = items.map(item => item.dataset.val).join('');
-    logDebug(`Forsøker å evaluere bygd uttrykk: ${expressionStr}`, 'info');
+    // Ignorer placeholders hvis de henger igjen
+    const validItems = items.filter(item => !item.classList.contains('drag-placeholder'));
+    let expressionStr = validItems.map(item => item.dataset.val).join('');
     
+    logDebug(`Forsøker å evaluere bygd uttrykk: ${expressionStr}`, 'info');
     evaluateExpression(expressionStr, 'build');
 }
 
@@ -248,13 +354,11 @@ function evaluateExpression(exprStr, source) {
         return;
     }
 
-    // 1. Validering av siffer-bruk
     if (!validateDiceUsage(exprStr)) {
         alert("Ugyldig bruk av siffer! Du kan kun bruke de terningene du har, og hver terning maks én gang.");
         return;
     }
 
-    // 2. Pars og beregn
     try {
         const result = calculateMath(exprStr);
         logDebug(`Resultat av beregning: ${result}`, 'info');
@@ -265,7 +369,6 @@ function evaluateExpression(exprStr, source) {
             return;
         }
         
-        // Sjekk om resultatet er et heltall (spillet handler om hele tall)
         if (result % 1 !== 0) {
             alert(`Svaret ble et desimaltall (${result}). Du må bygge heltall!`);
             logDebug('Svar avvist pga desimaler.', 'warn');
@@ -293,7 +396,7 @@ function validateDiceUsage(expr) {
             logDebug(`Validering feilet: Sifferet ${num} er ikke tilgjengelig eller brukt for mange ganger.`, 'error');
             return false;
         }
-        available.splice(idx, 1); // Fjern for å forhindre gjenbruk
+        available.splice(idx, 1); 
     }
     
     logDebug('Validering av siffer godkjent.', 'success');
@@ -307,7 +410,7 @@ function handleSuccessfulResult(expr, result) {
             addResultToTable(targetSequential, expr);
             targetSequential++;
             updateScoreUI();
-            elManualInput.value = ''; // Tøm input-felt
+            elManualInput.value = ''; 
         } else {
             logDebug(`Svaret ble ${result}, men målet er ${targetSequential}.`, 'warn');
             alert(`Du fikk ${result}, men du må finne et uttrykk for ${targetSequential}.`);
@@ -317,7 +420,7 @@ function handleSuccessfulResult(expr, result) {
         if (result > 0) {
             if (!solvedFreestyle.has(result)) {
                 solvedFreestyle.add(result);
-                logDebug(`Freestyle: La til ${result} i løste tall.`, 'success');
+                logDebug(`Freestyle: La til ${result} i løste tall. Nåværende samling: ${Array.from(solvedFreestyle).sort((a,b)=>a-b).join(',')}`, 'success');
                 addResultToTable(result, expr);
                 calculateFreestyleScore();
                 elManualInput.value = '';
@@ -344,11 +447,12 @@ function updateScoreUI() {
 
 function calculateFreestyleScore() {
     let check = 1;
+    // Sjekker hvor lang ubrutt rekke vi har fra 1 og oppover
     while (solvedFreestyle.has(check)) {
         check++;
     }
-    currentScore = check - 1; // Høyeste ubrutte rekke
-    logDebug(`Beregnet ny poengsum for freestyle: ${currentScore}`, 'info');
+    currentScore = check - 1; 
+    logDebug(`Beregnet ny poengsum (høyeste ubrutte rekke): ${currentScore}. Sjekket opp til ${check}`, 'info');
     updateScoreUI();
 }
 
@@ -356,14 +460,11 @@ function addResultToTable(number, expr) {
     const tr = document.createElement('tr');
     tr.className = 'success-row';
     tr.innerHTML = `<td>${number}</td><td>${expr} = ${number}</td>`;
-    
-    // Legg til øverst i tabellen
     elResultsTbody.insertBefore(tr, elResultsTbody.firstChild);
 }
 
 // === SEKSJON: MATTE PARSER (Shunting Yard) ===
 
-// Hjelpefunksjon for fakultet
 function factorial(n) {
     if (n < 0) return NaN;
     if (n === 0 || n === 1) return 1;
@@ -372,13 +473,11 @@ function factorial(n) {
     return res;
 }
 
-// Fullverdig lexer/parser
 function calculateMath(expr) {
     logDebug('Starter tokenisering (Lexing)...', 'info');
     let tokens = [];
     let numStr = "";
     
-    // Tokenizer
     for (let i = 0; i < expr.length; i++) {
         let char = expr[i];
         
@@ -390,11 +489,10 @@ function calculateMath(expr) {
                 numStr = "";
             }
             if ("+-*/^!()".includes(char)) {
-                // Sjekk for unær minus (f.eks negativt tall)
                 if (char === '-') {
                     const prev = tokens.length > 0 ? tokens[tokens.length - 1] : null;
                     if (!prev || (prev.type === 'operator' && prev.value !== ')') || (prev.type === 'operator' && prev.value === '(')) {
-                        tokens.push({ type: 'operator', value: 'u-' }); // unær minus
+                        tokens.push({ type: 'operator', value: 'u-' }); 
                         continue;
                     }
                 }
@@ -410,16 +508,14 @@ function calculateMath(expr) {
     
     logDebug(`Tokens: ${tokens.map(t => t.value).join(' | ')}`, 'info');
 
-    // Operator prioritet
     const precedence = {
         '+': 1, '-': 1,
         '*': 2, '/': 2,
-        'u-': 3, // Unær minus
+        'u-': 3, 
         '^': 4,
         '!': 5
     };
 
-    // Shunting Yard Algoritme (Infix -> Postfix)
     let outputQueue = [];
     let operatorStack = [];
 
@@ -434,12 +530,10 @@ function calculateMath(expr) {
                     outputQueue.push(operatorStack.pop());
                 }
                 if (operatorStack.length === 0) throw new Error("Feil med parenteser (manglende start-parentes).");
-                operatorStack.pop(); // Fjern '('
+                operatorStack.pop(); 
             } else {
-                // Vanlig operator
                 while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1].value !== '(') {
                     let topOp = operatorStack[operatorStack.length - 1];
-                    // Høyre-assosiative operatorer (^ og unær minus)
                     let isRightAssoc = token.value === '^' || token.value === 'u-';
                     
                     if ((!isRightAssoc && precedence[token.value] <= precedence[topOp.value]) ||
@@ -462,7 +556,6 @@ function calculateMath(expr) {
 
     logDebug(`Postfix (RPN): ${outputQueue.map(t => t.value).join(' ')}`, 'info');
 
-    // Evaluer Postfix (RPN)
     let evalStack = [];
     
     outputQueue.forEach(token => {
@@ -504,4 +597,4 @@ function calculateMath(expr) {
     return evalStack[0];
 }
 
-/* Version: #3 */
+/* Version: #8 */
