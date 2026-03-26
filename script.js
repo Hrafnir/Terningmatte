@@ -1,4 +1,4 @@
-/* Version: #8 */
+/* Version: #12 */
 
 // === SEKSJON: SYSTEMLOGG ===
 function logDebug(msg, type = 'info') {
@@ -16,11 +16,11 @@ function logDebug(msg, type = 'info') {
     entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="${colorClass}">${msg}</span>`;
     
     logBox.appendChild(entry);
-    logBox.scrollTop = logBox.scrollHeight; // Auto-scroll til bunnen
+    logBox.scrollTop = logBox.scrollHeight; 
     console.log(`[${type.toUpperCase()}] ${msg}`);
 }
 
-logDebug('Starter initialisering av oppdatert script.js', 'info');
+logDebug('Starter initialisering av script.js med klikk/tapp-støtte', 'info');
 
 // === SEKSJON: GLOBALE VARIABLER (STATE) ===
 let currentMode = 'sequential'; 
@@ -51,30 +51,25 @@ dragPlaceholder.className = 'drag-placeholder';
 document.addEventListener('DOMContentLoaded', () => {
     logDebug('DOM lastet. Knytter hendelser til knapper.', 'info');
 
-    // Modusvalg
     elModeSelect.addEventListener('change', (e) => {
         currentMode = e.target.value;
         logDebug(`Spillmodus endret til: ${currentMode}`, 'info');
         updateScoreUI();
     });
 
-    // Terningkast
     elBtnRoll.addEventListener('click', rollDice);
     elBtnManual.addEventListener('click', inputManualDice);
-
-    // Evaluering
     elBtnEvalBuild.addEventListener('click', evaluateBuildArea);
     elBtnClearBuild.addEventListener('click', clearBuildArea);
+    
     elBtnEvalManual.addEventListener('click', () => {
         evaluateExpression(elManualInput.value, 'manual');
     });
 
-    // Tillat "Enter" i tekstfeltet
     elManualInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') evaluateExpression(elManualInput.value, 'manual');
     });
 
-    // Sett opp Drag & Drop for statiske operatorer
     setupDraggableOperators();
     setupDropZones();
 });
@@ -107,7 +102,6 @@ function inputManualDice() {
     }
 }
 
-// Funksjon for å bygge HTML for ekte terning-prikker
 function createDiceDots(val) {
     const dotsMap = {
         1: ['pos-mc'],
@@ -124,7 +118,6 @@ function createDiceDots(val) {
             html += `<div class="dot ${posClass}"></div>`;
         });
     } else {
-        // Fallback for manuelle siffer over 6 eller 0
         html = `<span style="align-self:center; justify-self:center; grid-area: 2/2; font-size: 1.5rem; font-weight: bold;">${val}</span>`;
     }
     return html;
@@ -137,19 +130,21 @@ function renderDice() {
         die.className = 'die draggable';
         die.draggable = true;
         die.dataset.val = val;
-        die.dataset.id = `die-${index}`; // Unik ID
+        die.dataset.id = `die-${index}`;
         
-        // Fyll terningen med prikker!
         die.innerHTML = createDiceDots(val);
         
         die.addEventListener('dragstart', handleDragStart);
         die.addEventListener('dragend', handleDragEnd);
         
-        // Klikk for å raskt flytte terningen tilbake til source
-        die.addEventListener('dblclick', function() {
+        // KLIKK/TAPP-logikk for terninger
+        die.addEventListener('click', function() {
             if (this.parentElement.id === 'expression-builder') {
                 elAvailableDice.appendChild(this);
-                logDebug(`Terning ${this.dataset.val} returnert via dobbeltklikk.`, 'info');
+                logDebug(`Terning ${this.dataset.val} returnert via klikk.`, 'info');
+            } else if (this.parentElement.id === 'available-dice') {
+                elBuildArea.appendChild(this);
+                logDebug(`Terning ${this.dataset.val} flyttet til byggeflaten via klikk.`, 'info');
             }
         });
 
@@ -157,48 +152,69 @@ function renderDice() {
     });
 }
 
-// === SEKSJON: AVANSERT DRAG & DROP LOGIKK ===
+// === SEKSJON: AVANSERT DRAG & DROP OG KLIKK-LOGIKK ===
 let draggedElement = null;
 let isCloning = false;
+
+// Klargjør en operatør-klone slik at den oppfører seg riktig i byggeflaten
+function setupOperatorClone(clone) {
+    clone.classList.remove('is-dragging');
+    clone.classList.add('draggable'); 
+    clone.draggable = true;
+    
+    clone.addEventListener('dragstart', handleDragStart);
+    clone.addEventListener('dragend', handleDragEnd);
+    
+    // Tapp/klikk for å fjerne fra byggeflaten
+    clone.addEventListener('click', function() {
+        this.remove(); 
+        logDebug(`Fjernet operator ${this.dataset.val} via klikk.`, 'info');
+    });
+    return clone;
+}
 
 function setupDraggableOperators() {
     const operators = document.querySelectorAll('#available-operators .operator');
     operators.forEach(op => {
-        op.addEventListener('dragstart', (e) => {
-            draggedElement = op;
-            isCloning = true; 
-            e.dataTransfer.effectAllowed = 'copy';
-            op.classList.add('is-dragging');
-            logDebug(`Starter dra-operasjon for operator: ${op.dataset.val}`, 'info');
-        });
+        op.addEventListener('dragstart', handleDragStart);
         op.addEventListener('dragend', handleDragEnd);
+        
+        // Tapp for å legge til direkte
+        op.addEventListener('click', () => {
+            const clone = op.cloneNode(true);
+            setupOperatorClone(clone);
+            elBuildArea.appendChild(clone);
+            logDebug(`Operator ${clone.dataset.val} lagt til byggeflaten via klikk.`, 'success');
+        });
     });
 }
 
 function handleDragStart(e) {
     draggedElement = this;
-    isCloning = false; 
-    e.dataTransfer.effectAllowed = 'move';
+    
+    // Dynamisk sjekk: Skal elementet klones (fra verktøykassa) eller bare flyttes?
+    isCloning = (this.parentElement.id === 'available-operators');
+    
+    e.dataTransfer.effectAllowed = isCloning ? 'copy' : 'move';
     this.classList.add('is-dragging');
-    logDebug(`Starter dra-operasjon for element: ${this.dataset.val}`, 'info');
+    logDebug(`Starter dra-operasjon for: ${this.dataset.val} (Klones: ${isCloning})`, 'info');
 }
 
 function handleDragEnd(e) {
     if (draggedElement) draggedElement.classList.remove('is-dragging');
     
-    // Fjern visuell placeholder hvis den fortsatt er der
     if (dragPlaceholder.parentElement) {
         dragPlaceholder.remove();
     }
 
-    // SJEKK: Ble elementet sluppet utenfor en gyldig droppsone? (Sletting/kasting)
+    // Sletting/kasting hvis sluppet utenfor gyldig sone
     if (e.dataTransfer.dropEffect === 'none') {
         if (!isCloning) {
-            if (this.classList.contains('operator')) {
+            if (this.classList.contains('operator') && this.parentElement.id === 'expression-builder') {
                 logDebug(`Operator ${this.dataset.val} ble dratt ut av byggeflaten og slettet.`, 'info');
                 this.remove();
-            } else if (this.classList.contains('die')) {
-                logDebug(`Terning ${this.dataset.val} dratt ut av byggeflaten. Returnerer til start.`, 'info');
+            } else if (this.classList.contains('die') && this.parentElement.id === 'expression-builder') {
+                logDebug(`Terning ${this.dataset.val} dratt ut. Returnerer til start.`, 'info');
                 elAvailableDice.appendChild(this);
             }
         }
@@ -209,15 +225,13 @@ function handleDragEnd(e) {
     isCloning = false;
 }
 
-// Finner det elementet i byggeflaten vi skal sette inn "før" (skyve til side)
 function getDragAfterElement(container, x) {
     const draggableElements = [...container.querySelectorAll('.draggable:not(.is-dragging)')];
 
     return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
-        const offset = x - box.left - box.width / 2; // Avstand fra midten av elementet
+        const offset = x - box.left - box.width / 2; 
         
-        // Hvis vi er til venstre for midten av elementet, og tettere på enn forrige
         if (offset < 0 && offset > closest.offset) {
             return { offset: offset, element: child };
         } else {
@@ -239,14 +253,13 @@ function setupDropZones() {
                 const afterElement = getDragAfterElement(zone, e.clientX);
                 
                 if (isCloning) {
-                    // Vis en strek (placeholder) der operatoren vil lande
                     if (afterElement == null) {
                         zone.appendChild(dragPlaceholder);
                     } else {
                         zone.insertBefore(dragPlaceholder, afterElement);
                     }
                 } else {
-                    // Hvis vi flytter en terning/eksisterende operatør, la den skyve elementer live
+                    // Flytter eksisterende brikker live internt
                     if (afterElement == null) {
                         zone.appendChild(draggedElement);
                     } else {
@@ -258,7 +271,6 @@ function setupDropZones() {
 
         zone.addEventListener('dragleave', (e) => {
             zone.classList.remove('drag-over');
-            // Hvis vi forlater byggeflaten, fjern placeholderen
             if (zone.id === 'expression-builder' && dragPlaceholder.parentElement) {
                 dragPlaceholder.remove();
             }
@@ -275,33 +287,20 @@ function setupDropZones() {
             if (isCloning) {
                 if (targetType === 'builder') {
                     const clone = draggedElement.cloneNode(true);
-                    clone.classList.remove('is-dragging');
-                    clone.classList.add('draggable'); // Sikre at klonen kan dras igjen
-                    clone.draggable = true;
+                    setupOperatorClone(clone);
                     
-                    // Gi klonen drag-hendelser slik at den kan flyttes rundt inni byggeflaten
-                    clone.addEventListener('dragstart', handleDragStart);
-                    clone.addEventListener('dragend', handleDragEnd);
-                    clone.addEventListener('dblclick', () => {
-                        clone.remove(); 
-                        logDebug(`Fjernet operator ${clone.dataset.val} via dobbeltklikk.`, 'info');
-                    });
-
-                    // Erstatt placeholderen med den faktiske klonen
                     if (dragPlaceholder.parentElement === zone) {
                         zone.insertBefore(clone, dragPlaceholder);
                         dragPlaceholder.remove();
                     } else {
                         zone.appendChild(clone);
                     }
-                    logDebug(`Slapp operator ${clone.dataset.val} i byggeflaten.`, 'success');
+                    logDebug(`Slapp operator klone i byggeflaten.`, 'success');
                 }
             } else {
-                // Flytting håndteres allerede av dragover (for byggeflaten), 
-                // men hvis vi slipper i skuffen, må vi legge den til
                 if (targetType === 'dice-source' && draggedElement.classList.contains('die')) {
                     zone.appendChild(draggedElement);
-                    logDebug(`Returnerte terning ${draggedElement.dataset.val} til skuffen.`, 'success');
+                    logDebug(`Returnerte terning til skuffen via drag & drop.`, 'success');
                 }
             }
         });
@@ -329,7 +328,6 @@ function evaluateBuildArea() {
         return;
     }
     
-    // Ignorer placeholders hvis de henger igjen
     const validItems = items.filter(item => !item.classList.contains('drag-placeholder'));
     let expressionStr = validItems.map(item => item.dataset.val).join('');
     
@@ -340,7 +338,7 @@ function evaluateBuildArea() {
 // === SEKSJON: MATEMATIKK & VALIDERING ===
 
 function evaluateExpression(exprStr, source) {
-    exprStr = exprStr.replace(/\s+/g, ''); // Fjern mellomrom
+    exprStr = exprStr.replace(/\s+/g, ''); 
     logDebug(`Evaluerer: "${exprStr}" fra ${source}`, 'info');
 
     if (exprStr === '') {
@@ -416,7 +414,6 @@ function handleSuccessfulResult(expr, result) {
             alert(`Du fikk ${result}, men du må finne et uttrykk for ${targetSequential}.`);
         }
     } else {
-        // Freestyle mode
         if (result > 0) {
             if (!solvedFreestyle.has(result)) {
                 solvedFreestyle.add(result);
@@ -447,7 +444,6 @@ function updateScoreUI() {
 
 function calculateFreestyleScore() {
     let check = 1;
-    // Sjekker hvor lang ubrutt rekke vi har fra 1 og oppover
     while (solvedFreestyle.has(check)) {
         check++;
     }
@@ -597,4 +593,4 @@ function calculateMath(expr) {
     return evalStack[0];
 }
 
-/* Version: #8 */
+/* Version: #12 */
