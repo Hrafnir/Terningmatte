@@ -1,4 +1,4 @@
-/* Version: #12 */
+/* Version: #15 */
 
 // === SEKSJON: SYSTEMLOGG ===
 function logDebug(msg, type = 'info') {
@@ -20,7 +20,7 @@ function logDebug(msg, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${msg}`);
 }
 
-logDebug('Starter initialisering av script.js med klikk/tapp-støtte', 'info');
+logDebug('Starter initialisering av script.js med mål-UI og juksesperre', 'info');
 
 // === SEKSJON: GLOBALE VARIABLER (STATE) ===
 let currentMode = 'sequential'; 
@@ -42,6 +42,10 @@ const elBtnEvalManual = document.getElementById('btn-evaluate-manual');
 const elCurrentTarget = document.getElementById('current-target');
 const elCurrentScore = document.getElementById('current-score');
 const elResultsTbody = document.getElementById('results-tbody');
+
+// Nye DOM-elementer for iPad-fokus UI
+const elBuildTargetBadge = document.getElementById('build-target-badge');
+const elBuildTargetNumber = document.getElementById('build-target-number');
 
 // Visuell placeholder for Drag & Drop mellom elementer
 const dragPlaceholder = document.createElement('div');
@@ -72,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupDraggableOperators();
     setupDropZones();
+    updateScoreUI(); // Sørg for at UI er riktig fra start
 });
 
 // === SEKSJON: TERNINGLOGIKK ===
@@ -352,6 +357,13 @@ function evaluateExpression(exprStr, source) {
         return;
     }
 
+    // NY KONTROLL: Hindre at siffer settes sammen (f.eks. "5" og "6" blir "56")
+    if (/\d{2,}/.test(exprStr)) {
+        logDebug('Avbrutt: Spilleren forsøkte å slå sammen siffer til et flersifret tall.', 'warn');
+        alert("Du kan ikke sette siffer sammen (f.eks. 5 og 6 for å lage 56). Du må bruke matematiske tegn mellom terningene!");
+        return;
+    }
+
     if (!validateDiceUsage(exprStr)) {
         alert("Ugyldig bruk av siffer! Du kan kun bruke de terningene du har, og hver terning maks én gang.");
         return;
@@ -435,10 +447,17 @@ function updateScoreUI() {
     elCurrentTarget.textContent = targetSequential;
     elCurrentScore.textContent = currentScore;
     
+    // Oppdater det nye iPad-fokuserte skiltet i byggeflaten
+    if (elBuildTargetNumber) {
+        elBuildTargetNumber.textContent = targetSequential;
+    }
+    
     if (currentMode === 'sequential') {
         elCurrentTarget.parentElement.style.display = 'block';
+        if (elBuildTargetBadge) elBuildTargetBadge.style.display = 'flex';
     } else {
         elCurrentTarget.parentElement.style.display = 'none';
+        if (elBuildTargetBadge) elBuildTargetBadge.style.display = 'none';
     }
 }
 
@@ -593,4 +612,4 @@ function calculateMath(expr) {
     return evalStack[0];
 }
 
-/* Version: #12 */
+/* Version: #15 */
