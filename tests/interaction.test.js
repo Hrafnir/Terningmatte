@@ -50,3 +50,11 @@ test('Every costume can be reached before the group repeats',()=>{
  const all=Array.from({length:24},()=>pick('all'));
  assert.equal(new Set(all.map(a=>a.id)).size,24);
 });
+
+test('Every fresh competition round starts with the same immutable five dice',async()=>{
+ const {DEFAULT_DICE}=await import('../math.js');
+ assert.deepEqual(DEFAULT_DICE,[1,2,3,5,6]);
+ const first=newRound(DEFAULT_DICE),second=newRound(DEFAULT_DICE);
+ first.dice[0]=9;
+ assert.deepEqual(second.dice,[1,2,3,5,6]);assert.deepEqual(DEFAULT_DICE,[1,2,3,5,6]);
+});

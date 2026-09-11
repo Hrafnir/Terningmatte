@@ -1,9 +1,10 @@
-import {newRound, recordSolution, scoreFor, formatExpression, normalizeExpression, parseManualDice, evaluateForRound} from './math.js';
+import {DEFAULT_DICE, newRound, recordSolution, scoreFor, formatExpression, normalizeExpression, parseManualDice, evaluateForRound} from './math.js';
 import {tokensForExpression, expressionForTokens, restoredExpression} from './expression.js';
 import {avatarGroup, createAvatarPicker} from './avatars.js';
 const $ = id => document.getElementById(id);
 const KEY = 'terningmatte-round-v2';
-let state = {version:2, dice:[],mode:'sequential',level:'basic',solutions:{},tokens:[],manual:'',entry:'build',muted:false};
+let state = newRound(DEFAULT_DICE);
+state.entry = 'write';
 let undoStack = [], draggedIndex = null, hintWorker = null, hintStage = 0, hintExpression = null, hintKey = '';
 let hintTimer = null;
 let restored = false;
@@ -149,18 +150,18 @@ function startRound(dice) {
 }
 function openRoundDialog(manual=false) {
  const active=state.dice.length===5;
- $('round-title').textContent=active?'Slette runden og kaste på nytt?':'Velg de fem sifrene';
+ $('round-title').textContent=active?'Slette runden og starte på nytt?':'Velg de fem sifrene';
  $('delete-warning').hidden=!active;
  $('round-warning').textContent=active?'Du beholder dette kastet helt til du velger å starte en ny runde.':'Disse fem sifrene gjelder hele runden.';
  $('cancel-round').textContent=active?'Behold runden':'Avbryt';
  $('confirm-round').textContent=active?'Slett og start på 1':'Start med disse sifrene';
- document.querySelector(`[name=dice-source][value=${manual?'manual':'random'}]`).checked=true;
+ document.querySelector(`[name=dice-source][value=${manual?'manual':'default'}]`).checked=true;
  $('manual-dice-group').hidden=!manual;$('round-error').textContent='';
  $('round-dialog').showModal();
  if(active)$('cancel-round').focus();else $('manual-dice').focus();
 }
 $('new-round').addEventListener('click',()=>{
- if(!state.dice.length){startRound(Array.from({length:5},()=>Math.floor(Math.random()*6)+1));return;}
+ if(!state.dice.length){startRound(DEFAULT_DICE);return;}
  openRoundDialog();
 });
 $('choose-dice').addEventListener('click',()=>openRoundDialog(true));
@@ -169,8 +170,8 @@ document.querySelectorAll('[name=dice-source]').forEach(r=>r.addEventListener('c
 $('round-form').addEventListener('submit',e=>{
  e.preventDefault();
  try {
-  const manual=document.querySelector('[name=dice-source]:checked').value==='manual';
-  const dice=manual?parseManualDice($('manual-dice').value):Array.from({length:5},()=>Math.floor(Math.random()*6)+1);
+  const source=document.querySelector('[name=dice-source]:checked').value;
+  const dice=source==='default'?DEFAULT_DICE:source==='manual'?parseManualDice($('manual-dice').value):Array.from({length:5},()=>Math.floor(Math.random()*6)+1);
   $('round-dialog').close();startRound(dice);
  }catch(error){$('round-error').textContent=error.message;}
 });
@@ -205,6 +206,7 @@ function showHint(){
  else{coach(`Én vei er ${formatExpression(hintExpression)} = ${target()}. Bygg uttrykket selv og sjekk det. Jeg bidro mest med skjegg, men vi kom fram.`, 'hint');$('hint').textContent='Vis løsningen igjen';}
 }
 render();
+if(!restored)feedback('Konkurransekastet er klart: 1, 2, 3, 5 og 6. Start med å lage 1.');
 coach('', 'neutral', true);
 if(restored){feedback('Velkommen tilbake! Samme kast og alle løsningene dine er hentet fram.');coach('Jeg har passet på terningene. De har ikke rørt seg. Eksemplarisk klasseledelse.');}
 let practice;try{practice=sessionStorage.getItem('terningmatte-practice');}catch{}if(practice){try{sessionStorage.removeItem('terningmatte-practice');}catch{}feedback(`Fra matematikksiden: ${practice} Prøv ideen med kastet ditt – du trenger ikke ha de samme tallene.`);}

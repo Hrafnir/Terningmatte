@@ -1,3 +1,4 @@
+export const DEFAULT_DICE = Object.freeze([1, 2, 3, 5, 6]);
 // A bounded expression parser. Never executes user input as JavaScript.
 export class MathError extends Error {}
 export function normalizeExpression(text) {

@@ -36,7 +36,7 @@ Fonter lastes fra Google Fonts, med lokale systemfonter som reserve. Selve spill
 
 Skrivefeltet er alltid synlig rett under terningene. Tekst og flyttbare brikker er to visninger av samme uttrykk; endringer, angre og validering gjelder begge. Tidligere lagrede utkast migreres uten å miste det aktive uttrykket. Løsningene vises i en åpen liste.
 
-Første tilfeldige kast starter med ett klikk. Bare en eksisterende runde utløser advarselen om sletting. Manuelle siffer kan velges før start eller som del av en bekreftet ny runde.
+Nye spillere starter direkte med konkurransekastet 1, 2, 3, 5, 6. Bare en eksisterende runde utløser advarselen om sletting. Manuelle siffer kan velges før start eller som del av en bekreftet ny runde.
 
 24 separate avatarillustrasjoner ligger i `assets/avatars/`. `avatars.js` kobler seks varianter til hver av gruppene vanlig spill, oppmuntring ved feil, hint og feiring ved minst tre riktige svar på rad. Feil bryter denne bonusrekken, men sletter aldri løste tall eller poeng. Hint bryter ikke rekken. Knappen «Ny forkledning» blar gjennom alle 24. Kostymer skifter bare ved handlinger, ikke på en forstyrrende tidsstyring. Bevegelse respekterer redusert animasjon.
 
@@ -48,4 +48,8 @@ Første tilfeldige kast starter med ett klikk. Bare en eksisterende runde utløs
 
 ## Validering
 
-59 automatiske tester dekker regnerekkefølge, fakultet, negative eksponenter, ugyldig syntaks, eksakte brøkresultater, terningbegrensninger, rundestart, modusbytte og kontrollerte hint. Byggsteget sjekker at lokale sider og ressurser finnes. Visuell nettlesertesting er ikke gjennomført for denne versjonen.
+60 automatiske tester dekker regnerekkefølge, fakultet, negative eksponenter, ugyldig syntaks, eksakte brøkresultater, terningbegrensninger, rundestart, modusbytte og kontrollerte hint. Byggsteget sjekker at lokale sider og ressurser finnes. Visuell nettlesertesting er ikke gjennomført for denne versjonen.
+
+## Konkurransekast og GitHub Pages
+
+Nye besøk starter direkte med 1, 2, 3, 5, 6. Eksisterende lagrede runder beholdes; «Start ny runde» har konkurransekastet som standard. «Kopier / lagre resultat» åpner rundestatus, med knapper for PNG-kopiering, PNG-nedlasting og tekst rett under navnet. GitHub Pages publiserer rotmappen fra main.
